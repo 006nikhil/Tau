@@ -9,7 +9,7 @@ export default function Dashboard({ sm, cars, scan, openSymbols, act }) {
 
   const ready = rows.filter((r) => r.s.ready);
   const sipBuy = rows.filter((r) => r.p.mode === 'sip' && cars[r.p.symbol]?.signal === 'BUY');
-  const eligible = rows.filter((r) => r.s.sipEligible);
+  const eligible = rows.filter((r) => r.s.sipEligible).sort((a, b) => a.s.plPct - b.s.plPct);
   const picks = useMemo(() => (scan?.rows || [])
     .filter((r) => r.status === 'Bull' && !openSymbols.includes(r.symbol))
     .sort((a, b) => a.ltp - b.ltp)
@@ -19,7 +19,7 @@ export default function Dashboard({ sm, cars, scan, openSymbols, act }) {
     { k: 'Active', v: sm.deployedActive, c: '#6fd6a0' },
     { k: 'In SIP', v: sm.deployedSip, c: '#7eb6ff' },
     { k: 'SIP reserve', v: L.reserveCash, c: '#7eb6ff55' },
-    { k: 'Free cash', v: Math.max(0, L.freeCash), c: 'rgba(255,255,255,0.12)' },
+    { k: 'Free cash', v: Math.max(0, L.freeCash), c: 'var(--free)' },
   ];
   const allocTotal = alloc.reduce((a, b) => a + b.v, 0) || 1;
   const months = Object.entries(sm.byMonth).sort().slice(-12).map(([m, v]) => ({ m: new Date(m + '-01').toLocaleDateString('en-IN', { month: 'short' }), v }));
@@ -41,7 +41,7 @@ export default function Dashboard({ sm, cars, scan, openSymbols, act }) {
       <div className="card min-w-0 p-5">
         <Dial rows={rows} slots={S.slots} settings={S} equity={sm.equityMTM} cagr={sm.cagrMTM} onPick={act.detail} />
         <div className="mt-5">
-          <div className="flex h-2.5 overflow-hidden rounded-full bg-white/[0.04]">
+          <div className="flex h-2.5 overflow-hidden rounded-full" style={{ background: "var(--track)" }}>
             {alloc.map((a) => a.v > 0 && <div key={a.k} style={{ width: `${(a.v / allocTotal) * 100}%`, background: a.c }} />)}
           </div>
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
@@ -80,7 +80,7 @@ export default function Dashboard({ sm, cars, scan, openSymbols, act }) {
             ))}
             {eligible.map(({ p, s }) => (
               <Action key={`e${p.id}`} icon={TrendingDown} color="text-loss" title={`${p.symbol} is down ${pct(-s.plPct, 1, false)}`}
-                body={`Past your −${S.sipTriggerPct}% line. Move it to SIP?`}
+                body={`Past the −${S.sipTriggerPct}% soft cap. Move to SIP and start tracking CAR`}
                 btn={<button className="btn-ghost" onClick={() => act.moveSip(p)}>Move to SIP</button>} />
             ))}
             {sm.slotsFree > 0 && picks.length > 0 && (

@@ -38,3 +38,23 @@ html.light .bg-white\/\[0\.03\], html.light .bg-white\/\[0\.04\] { background: r
 .scrollbar-none::-webkit-scrollbar { display: none; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise .35s cubic-bezier(.2,.7,.2,1) both; }
+
+/* ── Light theme corrections ── */
+:root { --track: rgba(255,255,255,0.06); --free: rgba(255,255,255,0.12); }
+html.light { --track: rgba(16,40,32,0.09); --free: rgba(16,40,32,0.16); }
+html.light .bg-ink-950\/85, html.light .bg-ink-950\/90 { background: rgba(238,242,239,0.88); }
+html.light .border-white\/\[0\.05\] { border-color: rgba(0,0,0,0.07); }
+html.light .divide-white\/\[0\.05\] > * + *, html.light .divide-white\/\[0\.04\] > * + * { border-color: rgba(0,0,0,0.06); }
+html.light .bg-white\/\[0\.05\], html.light .bg-white\/\[0\.06\] { background: rgba(0,0,0,0.05); }
+html.light .bg-white\/\[0\.02\] { background: rgba(0,0,0,0.02); }
+html.light .text-gain { color: #178a55; }
+html.light .text-loss { color: #c8443a; }
+html.light .text-sip  { color: #2a6fc9; }
+html.light .text-tau  { color: #94701c; }
+html.light .bg-gain-soft { background: #178a5514; }
+html.light .bg-loss-soft { background: #c8443a14; }
+html.light .bg-sip-soft  { background: #2a6fc914; }
+html.light .bg-tau-soft  { background: #d9b25f24; }
+html.light .text-zinc-400, html.light .text-zinc-500, html.light .muted { color: #5f6b66; }
+html.light .shadow-card { box-shadow: 0 1px 2px rgba(16,40,32,0.06); }
+html.light .bg-ink-700 { background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }

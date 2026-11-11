@@ -14,7 +14,7 @@ export const DAY = 86400000;
 export const DEFAULT_SETTINGS = {
   slots: 15,
   targetPct: 6.28,          // book profit at avg × (1 + 6.28%)
-  sipTriggerPct: 10,        // flag "eligible for SIP" when P&L ≤ −10% (you decide to move)
+  sipTriggerPct: 20,        // soft cap: at −20% a stock moves to SIP and CAR tracking starts (most negative first)
   sipFraction: 0.1,         // each SIP tranche = 1/10 of the original invested amount
   split: {                  // what happens to each trade's net profit (after charges + tax)
     preset: 'smart',

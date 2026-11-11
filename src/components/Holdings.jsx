@@ -98,8 +98,8 @@ function Progress({ pl, target, trigger, sip }) {
   const pos = v >= 0;
   const w = (Math.abs(v) / span) * 100;
   return (
-    <div className="relative mt-3 h-1.5 rounded-full bg-white/[0.06]">
-      <div className="absolute top-[-3px] h-3 w-px bg-white/25" style={{ left: `${zero}%` }} />
+    <div className="relative mt-3 h-1.5 rounded-full" style={{ background: "var(--track)" }}>
+      <div className="absolute top-[-3px] h-3 w-px bg-zinc-400/50" style={{ left: `${zero}%` }} />
       <div className="absolute right-0 top-[-3px] h-3 w-px bg-tau/70" />
       <div className="absolute h-full rounded-full" style={{
         left: pos ? `${zero}%` : `${zero - w}%`, width: `${w}%`,

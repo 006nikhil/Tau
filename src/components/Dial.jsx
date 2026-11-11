@@ -4,7 +4,7 @@ import { compact, pct } from './ui.jsx';
 // The τ dial: one arc segment per slot around a full turn (2π ≈ 6.28).
 // Active segments fill green toward the 6.28% target; SIP segments are blue;
 // a position under water shows its drawdown in coral (full arc = SIP trigger).
-const COLORS = { active: '#6fd6a0', sip: '#7eb6ff', loss: '#f27d72', empty: 'rgba(255,255,255,0.06)' };
+const COLORS = { active: '#6fd6a0', sip: '#7eb6ff', loss: '#f27d72', empty: 'var(--track)' };
 
 function arc(cx, cy, r, a0, a1) {
   const p = (a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];

@@ -3,8 +3,9 @@ import { Download, Upload, LogOut, Moon, Sun } from 'lucide-react';
 import { Field, NumberInput, rupee } from './ui.jsx';
 import { SPLIT_PRESETS, DEFAULT_SETTINGS } from '../lib/strategy.js';
 import { DEFAULT_UNIVERSE } from '../lib/universe.js';
+import UniverseUpdater from './UniverseUpdater.jsx';
 
-export default function Settings({ state, setState, sm, mode, user, onSignOut }) {
+export default function Settings({ state, setState, sm, mode, user, onSignOut, onToggleTheme }) {
   const S = sm.S;
   const set = (patch) => setState((st) => ({ ...st, settings: { ...st.settings, ...patch } }));
   const setNested = (key, patch) => setState((st) => ({ ...st, settings: { ...st.settings, [key]: { ...S[key], ...(st.settings?.[key] || {}), ...patch } } }));
@@ -59,7 +60,7 @@ export default function Settings({ state, setState, sm, mode, user, onSignOut })
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Field label="Slots"><NumberInput step="1" value={S.slots} onChange={(v) => set({ slots: Math.max(1, +v || 15) })} /></Field>
           <Field label="Profit target %"><NumberInput value={S.targetPct} onChange={(v) => set({ targetPct: +v || 6.28 })} /></Field>
-          <Field label="SIP warning at loss of %" hint="Flags a position to move to SIP"><NumberInput value={S.sipTriggerPct} onChange={(v) => set({ sipTriggerPct: +v || 10 })} /></Field>
+          <Field label="SIP soft cap, loss %" hint="At this loss, Tau suggests moving to SIP"><NumberInput value={S.sipTriggerPct} onChange={(v) => set({ sipTriggerPct: +v || 20 })} /></Field>
           <Field label="SIP tranche, fraction of slot" hint="0.1 = one tenth"><NumberInput value={S.sipFraction} onChange={(v) => set({ sipFraction: +v || 0.1 })} /></Field>
           <Field label="Bull run band, min % over 200 DMA"><NumberInput value={S.bull.minPct} onChange={(v) => setNested('bull', { minPct: +v })} /></Field>
           <Field label="Bull run band, max %"><NumberInput value={S.bull.maxPct} onChange={(v) => setNested('bull', { maxPct: +v })} /></Field>
@@ -85,7 +86,8 @@ export default function Settings({ state, setState, sm, mode, user, onSignOut })
 
       <section className="card p-5">
         <h2 className="text-xl font-semibold">Screener universe</h2>
-        <p className="mt-1 text-sm muted">{(S.universe || DEFAULT_UNIVERSE).length} NSE codes, comma or line separated. Starts with the 250 from the DMADMA sheet.</p>
+        <p className="mt-1 text-sm muted">Pick an index to pull its current members from NSE, or edit the {(S.universe || DEFAULT_UNIVERSE).length} codes below by hand.</p>
+        <div className="mt-3"><UniverseUpdater showPicker settings={S} universe={S.universe || DEFAULT_UNIVERSE} openSymbols={(state.positions || []).filter((p) => p.status === 'open').map((p) => p.symbol)} onSave={(patch) => { set(patch); if (patch.universe) setUni(patch.universe.join(', ')); }} /></div>
         <textarea className="input mt-3 min-h-[160px] font-sans text-xs leading-relaxed" value={uni} onChange={(e) => setUni(e.target.value)} />
         <div className="mt-3 flex gap-2">
           <button className="btn-ghost" onClick={() => set({ universe: [...new Set(uni.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))] })}>Save list</button>
@@ -98,7 +100,7 @@ export default function Settings({ state, setState, sm, mode, user, onSignOut })
         <div className="mt-4 space-y-3 text-sm">
           <div className="flex items-center justify-between">
             <span>Theme</span>
-            <button className="btn-ghost" onClick={() => set({ theme: S.theme === 'light' ? 'dark' : 'light' })}>
+            <button className="btn-ghost" onClick={onToggleTheme}>
               {S.theme === 'light' ? <><Moon size={15} />Dark</> : <><Sun size={15} />Light</>}
             </button>
           </div>

@@ -26,7 +26,7 @@ export function BuyDialog({ open, onClose, prefill, ctx, onSave }) {
   const ch = buyCharges(value, settings.charges);
   const sym = symbol.trim().toUpperCase();
   const dup = openSymbols.includes(sym);
-  const valid = sym && px > 0 && qty > 0 && date;
+  const valid = sym && px > 0 && qty > 0 && date && !dup;
 
   const save = () => {
     onSave({
@@ -52,7 +52,7 @@ export function BuyDialog({ open, onClose, prefill, ctx, onSave }) {
           </Field>
         </div>
         <Field label="Date"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-        {dup && <div className="flex gap-2 rounded-xl bg-sip-soft p-3 text-sm text-sip"><AlertTriangle size={16} className="mt-0.5 shrink-0" />You already hold {sym}. This opens a separate slot.</div>}
+        {dup && <div className="flex gap-2 rounded-xl bg-sip-soft p-3 text-sm text-sip"><AlertTriangle size={16} className="mt-0.5 shrink-0" />You already hold {sym}. Book that position before buying it again.</div>}
         <div className="rounded-xl bg-white/[0.03] px-3 py-1">
           <Row k="Invested" v={rupee(value)} strong />
           <Row k="Buy charges" v={rupee(ch.total, 2)} />

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutDashboard, Briefcase, Radar, BookOpen, Settings as Cog, RefreshCw, Loader2, Undo2, Cloud, CloudOff, HardDrive, Plus } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Radar, BookOpen, Settings as Cog, RefreshCw, Loader2, Undo2, Cloud, CloudOff, HardDrive, Plus, Sun, Moon } from 'lucide-react';
 import { useTauStore, MODE } from './lib/store.js';
 import { summarize, todayISO } from './lib/strategy.js';
 import { marketCache, refreshHoldings, runScan, isMarketHours } from './lib/market.js';
@@ -34,9 +34,16 @@ export default function App() {
 
   useEffect(() => { try { history.replaceState(null, '', `#${tab}`); } catch { /* sandboxed */ } }, [tab]);
 
-  const sm = useMemo(() => summarize(state, quotes), [state, quotes]);
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('tau.theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); } catch { return 'dark'; } });
+  const toggleTheme = () => setTheme((t) => { const n = t === 'light' ? 'dark' : 'light'; try { localStorage.setItem('tau.theme', n); } catch { /* ignore */ } return n; });
+  const smRaw = useMemo(() => summarize(state, quotes), [state, quotes]);
+  const sm = useMemo(() => ({ ...smRaw, S: { ...smRaw.S, theme } }), [smRaw, theme]);
   const S = sm.S;
-  useEffect(() => { document.documentElement.classList.toggle('light', S.theme === 'light'); document.documentElement.classList.toggle('dark', S.theme !== 'light'); }, [S.theme]);
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light');
+    document.documentElement.classList.toggle('dark', theme !== 'light');
+    document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme === 'light' ? '#eef2ef' : '#0a1411');
+  }, [theme]);
 
   const openPositions = (state.positions || []).filter((p) => p.status === 'open');
   const openSymbols = openPositions.map((p) => p.symbol);
@@ -124,6 +131,9 @@ export default function App() {
               <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs muted" title={MODE === 'local' ? 'Data is saved in this browser only' : 'Shared with your household'}>
                 <SyncIcon size={13} className={status === 'saving' || status === 'loading' ? 'animate-spin' : status === 'offline' ? 'text-loss' : ''} />{syncLabel}
               </span>
+              <button className="btn-ghost !p-2" onClick={toggleTheme} aria-label={S.theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'} title={S.theme === 'light' ? 'Dark mode' : 'Light mode'}>
+                {S.theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+              </button>
               {store.canUndo && <button className="btn-ghost !p-2" onClick={store.undoLast} aria-label="Undo last change" title="Undo"><Undo2 size={15} /></button>}
               <button className="btn-ghost !p-2" onClick={refresh} disabled={refreshing || !symKey} aria-label="Refresh prices" title="Refresh prices">
                 <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
@@ -150,9 +160,9 @@ export default function App() {
           )}
           {tab === 'home' && <Dashboard sm={sm} cars={cars} scan={scan} openSymbols={openSymbols} act={act} />}
           {tab === 'holdings' && <Holdings sm={sm} cars={cars} act={act} />}
-          {tab === 'screener' && <Screener scan={scan} scanning={scanning} progress={progress} onScan={doScan} openSymbols={openSymbols} slotSize={sm.L.slotSize} settings={S} act={act} universeSize={universe.length} />}
+          {tab === 'screener' && <Screener scan={scan} scanning={scanning} progress={progress} onScan={doScan} openSymbols={openSymbols} slotSize={sm.L.slotSize} settings={S} act={act} universe={universe} onSettings={(patch) => setState((st) => ({ ...st, settings: { ...st.settings, ...patch } }))} />}
           {tab === 'journal' && <Journal state={state} sm={sm} act={act} onDeleteCapital={(id) => setState((st) => ({ ...st, capitalEvents: st.capitalEvents.filter((e) => e.id !== id) }))} />}
-          {tab === 'settings' && <Settings state={state} setState={setState} sm={sm} mode={MODE} user={user} onSignOut={store.signOut} />}
+          {tab === 'settings' && <Settings state={state} setState={setState} sm={sm} mode={MODE} user={user} onSignOut={store.signOut} onToggleTheme={toggleTheme} />}
         </main>
 
         {/* Bottom bar (mobile) */}

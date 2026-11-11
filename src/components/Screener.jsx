@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { RefreshCw, Search, Radar, Loader2 } from 'lucide-react';
 import { CarChip, pct, price, rupee, Segmented, Empty } from './ui.jsx';
 import { fetchSeries, analyse } from '../lib/market.js';
+import UniverseUpdater from './UniverseUpdater.jsx';
 
-export default function Screener({ scan, scanning, progress, onScan, openSymbols, slotSize, settings, act, universeSize }) {
+export default function Screener({ scan, scanning, progress, onScan, openSymbols, slotSize, settings, act, universe, onSettings }) {
   const [view, setView] = useState('Bull');
   const [sort, setSort] = useState('price');
   const [hideHeld, setHideHeld] = useState(true);
@@ -34,9 +35,9 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
       <div className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-xl">
-            <h2 className="text-xl font-semibold">DMADMA screener</h2>
+            <h2 className="text-xl font-semibold">DMA screener</h2>
             <p className="mt-1 text-sm muted">
-              A stock is in a bull run when its price is above the 50, 100 and 200-day averages and no more than {settings.bull.maxPct}% above the 200-day. Scans {universeSize} stocks.
+              A stock is in a bull run when its price is above the 50, 100 and 200-day averages and no more than {settings.bull.maxPct}% above the 200-day.
             </p>
           </div>
           <button className="btn-primary" onClick={onScan} disabled={scanning}>
@@ -44,6 +45,7 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
             {scanning ? `Scanning ${progress.done}/${progress.total}` : 'Run scan'}
           </button>
         </div>
+        <div className="mt-3"><UniverseUpdater settings={settings} universe={universe} openSymbols={openSymbols} onSave={onSettings} /></div>
         {scanning && <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full bg-tau transition-all" style={{ width: `${(progress.done / (progress.total || 1)) * 100}%` }} /></div>}
         {scan && (
           <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
@@ -132,7 +134,7 @@ function CarLookup() {
           <div><div className="text-sm muted">Signal</div><div className="mt-1"><CarChip car={res.car} /></div></div>
           <div><div className="text-sm muted">52-week high</div><div className="num mt-1">{price(res.car.high)} <span className="muted">({res.car.highDate})</span></div></div>
           <div><div className="text-sm muted">Running average</div><div className="num mt-1">{price(res.car.cumAvg)} <span className="muted">vs {price(res.ltp)} now</span></div></div>
-          <div><div className="text-sm muted">DMADMA</div><div className="mt-1">{res.dm.status === 'Bull' ? 'Bull run' : res.dm.status === 'Bear' ? 'Bear run' : res.dm.status}, {pct(res.dm.diff200, 1)}</div></div>
+          <div><div className="text-sm muted">DMA status</div><div className="mt-1">{res.dm.status === 'Bull' ? 'Bull run' : res.dm.status === 'Bear' ? 'Bear run' : res.dm.status}, {pct(res.dm.diff200, 1)}</div></div>
         </div>
       ))}
     </div>
