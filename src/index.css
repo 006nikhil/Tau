@@ -24,7 +24,7 @@ html.light body { @apply bg-[#eef2ef] text-zinc-900; }
   .input { @apply w-full rounded-xl border border-white/[0.08] bg-ink-850 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-tau/60 focus:ring-2 focus:ring-tau/20; }
   html.light .input { @apply border-black/10 bg-zinc-50 text-zinc-900; }
   .label { @apply mb-1.5 block text-xs font-medium text-zinc-400; }
-  .chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold; }
+  .chip { @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold; }
   .muted { @apply text-zinc-500; }
 }
 html.light .text-zinc-100, html.light .text-zinc-200 { color: #18181b; }

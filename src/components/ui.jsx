@@ -79,10 +79,10 @@ export function Stat({ label, value, sub, valueClass = '' }) {
 
 export function CarChip({ car }) {
   if (!car || car.signal === 'NoData') return <span className="chip bg-white/[0.05] text-zinc-500">CAR —</span>;
-  if (car.signal === 'BUY') return <span className="chip bg-gain-soft text-gain">CAR buy</span>;
+  if (car.signal === 'BUY') return <span className="chip bg-gain-soft text-gain">CAR: buy</span>;
   return (
     <span className="chip bg-white/[0.05] text-zinc-400" title={`Cumulative average has risen ${car.streak} of the 9 sessions needed`}>
-      {`CAR ${car.streak}/9`}
+      {`CAR: wait ${car.streak}/9`}
     </span>
   );
 }

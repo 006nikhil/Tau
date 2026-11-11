@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { RefreshCw, Search, Radar, Loader2, ChevronDown } from 'lucide-react';
-import { CarChip, pct, price, rupee, Segmented, Empty } from './ui.jsx';
+import { CarChip, pct, price, rupee, Segmented, Empty, fmtDate } from './ui.jsx';
+import { sipReadiness } from '../lib/strategy.js';
 import { fetchSeries, analyse } from '../lib/market.js';
 import UniverseUpdater from './UniverseUpdater.jsx';
 
-export default function Screener({ scan, scanning, progress, onScan, openSymbols, slotSize, settings, act, universe, onSettings }) {
+export default function Screener({ scan, scanning, progress, onScan, openSymbols, slotSize, settings, act, universe, onSettings, rows }) {
   const [showOthers, setShowOthers] = useState(false);
   const [sort, setSort] = useState('price');
   const [hideHeld, setHideHeld] = useState(true);
@@ -99,7 +100,7 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
 
       {scan && <OtherStocks rows={scan.rows} open={showOthers} onToggle={() => setShowOthers((v) => !v)} />}
 
-      <CarLookup />
+      <CarLookup rows={rows} settings={settings} act={act} />
     </div>
   );
 }
@@ -140,7 +141,7 @@ function OtherStocks({ rows, open, onToggle }) {
   );
 }
 
-function CarLookup() {
+function CarLookup({ rows = [], settings, act }) {
   const [sym, setSym] = useState('');
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -151,26 +152,90 @@ function CarLookup() {
     try {
       const { data, errors } = await fetchSeries([s]);
       if (!data[s]) throw new Error(errors[s] || 'No data');
-      setRes({ s, ...analyse(data[s]) });
+      setRes({ s, ...analyse(data[s], settings.bull) });
     } catch (err) { setRes({ s, error: err.message }); }
     setBusy(false);
   };
   return (
     <div className="card p-5">
       <h2 className="text-xl font-semibold">Check CAR for any stock</h2>
-      <p className="mt-1 text-sm muted">From the 52-week high onward, Tau keeps a running average of closing prices. "Buy" means that average has risen 9 sessions in a row: the stock is climbing out of its correction.</p>
+      <p className="mt-1 text-sm muted">Tells you whether to add a SIP tranche, buy, or wait.</p>
       <form onSubmit={run} className="mt-4 flex gap-2">
         <input className="input uppercase sm:w-56" placeholder="NSE code" value={sym} onChange={(e) => setSym(e.target.value)} />
         <button className="btn-ghost" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin" /> : 'Check'}</button>
       </form>
-      {res && (res.error ? <p className="mt-3 text-sm text-loss">{res.s}: {res.error}</p> : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div><div className="text-sm muted">Signal</div><div className="mt-1"><CarChip car={res.car} /></div></div>
-          <div><div className="text-sm muted">52-week high</div><div className="num mt-1">{price(res.car.high)} <span className="muted">({res.car.highDate})</span></div></div>
-          <div><div className="text-sm muted">Running average</div><div className="num mt-1">{price(res.car.cumAvg)} <span className="muted">vs {price(res.ltp)} now</span></div></div>
-          <div><div className="text-sm muted">DMA status</div><div className="mt-1">{res.dm.status === 'Bull' ? 'Bull run' : res.dm.status === 'Bear' ? 'Bear run' : res.dm.status}, {pct(res.dm.diff200, 1)}</div></div>
-        </div>
-      ))}
+      {res && (res.error ? <p className="mt-3 text-sm text-loss">{res.s}: {res.error}</p> : <CarVerdict res={res} rows={rows} settings={settings} act={act} />)}
+    </div>
+  );
+}
+
+/** Plain-language verdict: what CAR says and what to do about it, given how (or whether) you hold the stock. */
+function CarVerdict({ res, rows, settings, act }) {
+  const { s: symbol, car, dm, ltp } = res;
+  const held = rows.find((r) => r.p.symbol === symbol);
+  const stats = held ? { ...held.s, ltp, plPct: held.s.avgPrice ? ((ltp - held.s.avgPrice) / held.s.avgPrice) * 100 : null } : null;
+  const isBuy = car.signal === 'BUY';
+  const n = car.streak || 0;
+  const above = car.cumAvg != null && ltp > car.cumAvg;
+  const tooFresh = car.sessionsSinceHigh != null && car.sessionsSinceHigh < 10;
+
+  // What CAR itself is saying
+  let carLine;
+  if (car.signal === 'NoData') carLine = 'Not enough price history to calculate CAR.';
+  else if (tooFresh) carLine = `It made its 52-week high only ${car.sessionsSinceHigh} session${car.sessionsSinceHigh === 1 ? '' : 's'} ago, so there's no correction to recover from yet.`;
+  else if (isBuy) carLine = 'The running average since the 52-week high has risen 9 sessions in a row. The correction looks over.';
+  else if (above) carLine = `The running average has risen ${n} of the 9 sessions needed. Price is above it, so the count is still building: earliest buy signal in ${9 - n} session${9 - n === 1 ? '' : 's'} if it holds.`;
+  else carLine = `The running average has risen ${n} of the 9 sessions needed. Price is below it, so the average will dip and the count starts over.`;
+
+  // What to do
+  let tone = 'wait', title, body, action = null;
+  if (held && held.p.mode === 'sip') {
+    const sr = sipReadiness(stats, car, settings);
+    if (sr.ready) {
+      tone = 'go'; title = 'Add a SIP tranche';
+      body = sr.first ? `You hold ${symbol} in SIP and CAR says buy. This is the first tranche.` : `CAR is still buy, it's been a week since your last SIP, and price is at least ${settings.sipStepPct}% above it.`;
+      action = <button className="btn-sip" onClick={() => act.sip(held.p)}>Add SIP {rupee(held.s.sipAmount)}</button>;
+    } else {
+      title = "Don't add yet";
+      body = car.signal !== 'BUY' ? `You hold ${symbol} in SIP. Wait for CAR to say buy before adding the next ${rupee(held.s.sipAmount)}.` : `${sr.reason}.`;
+    }
+  } else if (held) {
+    if (stats.plPct != null && stats.plPct <= -settings.sipTriggerPct) {
+      tone = 'warn'; title = 'Move it to SIP first';
+      body = `It's ${pct(stats.plPct, 1)} below your average, past the −${settings.sipTriggerPct}% soft cap. Move it to SIP, then add tranches when CAR says buy.`;
+      action = <button className="btn-ghost text-sip" onClick={() => act.moveSip(held.p)}>Move to SIP</button>;
+    } else {
+      title = 'Hold for the target';
+      body = `You hold ${symbol} as an active position (${pct(stats.plPct, 1)}). CAR only decides SIP buys. Sell at ${price(held.s.target)}.`;
+    }
+  } else if (dm.status === 'Bull') {
+    tone = 'go'; title = 'Can be bought as a new entry';
+    body = `It's in a bull run (${pct(dm.diff200, 1)} vs the 200-day average), so it qualifies on the screener. CAR doesn't apply to new entries.`;
+    action = <button className="btn-primary" onClick={() => act.buy({ symbol, ltp })}>Buy</button>;
+  } else {
+    title = 'Not a buy';
+    body = `It's ${dm.status === 'Bear' ? 'in a bear run' : 'not in a bull run'}, so it doesn't qualify as a new entry. CAR only matters for stocks you're averaging in SIP.`;
+  }
+  const box = { go: 'border-gain/40 bg-gain-soft', warn: 'border-sip/40 bg-sip-soft', wait: 'border-white/10 bg-white/[0.03]' }[tone];
+  const head = { go: 'text-gain', warn: 'text-sip', wait: 'text-zinc-100' }[tone];
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className={`rounded-2xl border p-4 ${box}`}>
+        <div className="text-xs muted">{symbol}{held ? (held.p.mode === 'sip' ? ', in your SIP' : ', you hold this') : ''}</div>
+        <div className={`display mt-0.5 text-lg font-semibold ${head}`}>{title}</div>
+        <p className="mt-1 text-sm text-zinc-300">{body}</p>
+        {action && <div className="mt-3">{action}</div>}
+      </div>
+      <div className="flex items-start gap-3 rounded-xl bg-white/[0.03] px-4 py-3">
+        <CarChip car={car} />
+        <p className="text-sm text-zinc-300">{carLine}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+        <div><div className="muted">52-week high</div><div className="num mt-0.5">{price(car.high)} <span className="muted">on {fmtDate(car.highDate)}</span></div></div>
+        <div><div className="muted">Running average</div><div className="num mt-0.5">{price(car.cumAvg)} <span className="muted">vs {price(ltp)} now</span></div></div>
+        <div><div className="muted">DMA</div><div className="mt-0.5">{dm.status === 'Bull' ? 'Bull run' : dm.status === 'Bear' ? 'Bear run' : dm.status === 'NoData' ? '—' : 'Unconfirmed'}, {pct(dm.diff200, 1)}</div></div>
+      </div>
     </div>
   );
 }

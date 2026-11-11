@@ -162,7 +162,7 @@ export default function App() {
           )}
           {tab === 'home' && <Dashboard sm={sm} cars={cars} scan={scan} openSymbols={openSymbols} act={act} />}
           {tab === 'holdings' && <Holdings sm={sm} cars={cars} act={act} />}
-          {tab === 'screener' && <Screener scan={scan} scanning={scanning} progress={progress} onScan={doScan} openSymbols={openSymbols} slotSize={sm.L.slotSize} settings={S} act={act} universe={universe} onSettings={(patch) => setState((st) => ({ ...st, settings: { ...st.settings, ...patch } }))} />}
+          {tab === 'screener' && <Screener scan={scan} scanning={scanning} progress={progress} onScan={doScan} openSymbols={openSymbols} slotSize={sm.L.slotSize} settings={S} act={act} rows={sm.rows} universe={universe} onSettings={(patch) => setState((st) => ({ ...st, settings: { ...st.settings, ...patch } }))} />}
           {tab === 'journal' && <Journal state={state} sm={sm} act={act} onDeleteCapital={(id) => setState((st) => ({ ...st, capitalEvents: st.capitalEvents.filter((e) => e.id !== id) }))} />}
           {tab === 'settings' && <Settings state={state} setState={setState} sm={sm} mode={MODE} user={user} onSignOut={store.signOut} onToggleTheme={toggleTheme} />}
         </main>
