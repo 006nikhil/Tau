@@ -3,12 +3,13 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 
 import { CircleDollarSign, Coins, Plus, Sparkles, TrendingDown, Waves } from 'lucide-react';
 import Dial from './Dial.jsx';
 import { Stat, rupee, pct, days, compact, CarChip, tone, Empty } from './ui.jsx';
+import { sipReadiness } from '../lib/strategy.js';
 
 export default function Dashboard({ sm, cars, scan, openSymbols, act }) {
   const { S, L, rows } = sm;
 
   const ready = rows.filter((r) => r.s.ready);
-  const sipBuy = rows.filter((r) => r.p.mode === 'sip' && cars[r.p.symbol]?.signal === 'BUY');
+  const sipBuy = rows.filter((r) => r.p.mode === 'sip' && sipReadiness(r.s, cars[r.p.symbol], S).ready);
   const eligible = rows.filter((r) => r.s.sipEligible).sort((a, b) => a.s.plPct - b.s.plPct);
   const picks = useMemo(() => (scan?.rows || [])
     .filter((r) => r.status === 'Bull' && !openSymbols.includes(r.symbol))
@@ -75,7 +76,7 @@ export default function Dashboard({ sm, cars, scan, openSymbols, act }) {
             ))}
             {sipBuy.map(({ p, s }) => (
               <Action key={`s${p.id}`} icon={Waves} color="text-sip" title={`Average ${p.symbol}`}
-                body={`CAR says buy. Add ${rupee(s.sipAmount)}, tranche ${s.sipCount + 1}`}
+                body={s.sipCount ? `CAR still buy and up ${pct(((s.ltp / s.lastSipPrice) - 1) * 100, 1)} on the last SIP. Add ${rupee(s.sipAmount)}, tranche ${s.sipCount + 1}` : `CAR says buy. Add ${rupee(s.sipAmount)}, first tranche`}
                 btn={<button className="btn-sip" onClick={() => act.sip(p)}>Add SIP</button>} />
             ))}
             {eligible.map(({ p, s }) => (

@@ -201,7 +201,6 @@ function Brand({ small }) {
       <div className={`grid place-items-center rounded-xl bg-tau-soft text-tau ${small ? 'h-8 w-8 text-xl' : 'h-9 w-9 text-2xl'}`} style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>τ</div>
       <div className="leading-tight">
         <div className="display text-[17px] font-semibold">Tau</div>
-        {!small && <div className="text-xs muted">6.28% strategy desk</div>}
       </div>
     </div>
   );

@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS = {
   targetPct: 6.28,          // book profit at avg × (1 + 6.28%)
   sipTriggerPct: 20,        // soft cap: at −20% a stock moves to SIP and CAR tracking starts (most negative first)
   sipFraction: 0.1,         // each SIP tranche = 1/10 of the original invested amount
+  sipGapDays: 7,            // after the first tranche: at most one per week while CAR stays BUY…
+  sipStepPct: 3.14,         // …and only if price is ≥ 3.14% above the previous SIP buy
   split: {                  // what happens to each trade's net profit (after charges + tax)
     preset: 'smart',
     dividend: 33.34,
@@ -197,6 +199,7 @@ export function positionStats(p, ltp, settings) {
   const firstBuy = lots.length ? lots.reduce((m, l) => (l.date < m ? l.date : m), lots[0].date) : null;
   const sipLots = lots.filter((l) => l.kind === 'sip');
   const sipStart = sipLots.length ? sipLots.reduce((m, l) => (l.date < m ? l.date : m), sipLots[0].date) : null;
+  const lastSip = sipLots.length ? sipLots.reduce((m, l) => (l.date >= m.date ? l : m), sipLots[0]) : null;
   const original = p.originalInvested ?? (lots[0] ? lots[0].qty * lots[0].price : 0);
   const target = avgPrice * (1 + settings.targetPct / 100);
   const mv = ltp ? qty * ltp : null;
@@ -205,11 +208,31 @@ export function positionStats(p, ltp, settings) {
   const toTarget = ltp ? ((target - ltp) / ltp) * 100 : null;
   return {
     qty, buyValue, buyChg, avgPrice, firstBuy, sipStart, sipCount: sipLots.length,
+    lastSipPrice: lastSip?.price ?? null, lastSipDate: lastSip?.date ?? null,
     original, sipAmount: original * settings.sipFraction, target, ltp, mv, pl, plPct, toTarget,
     ready: ltp != null && ltp >= target,
     sipEligible: p.mode !== 'sip' && plPct != null && plPct <= -settings.sipTriggerPct,
     days: firstBuy ? daysBetween(firstBuy, todayISO()) : 0,
   };
+}
+
+/**
+ * Is a SIP tranche due today?
+ *  • CAR must say BUY.
+ *  • First tranche: no other condition.
+ *  • After that: ≥ sipGapDays since the last SIP buy AND price ≥ last SIP price × (1 + sipStepPct%).
+ */
+export function sipReadiness(s, car, settings, today = todayISO()) {
+  if (car?.signal !== 'BUY') return { ready: false, reason: 'Waiting for CAR buy' };
+  if (!s.sipCount) return { ready: true, first: true };
+  const gap = daysBetween(s.lastSipDate, today);
+  const need = s.lastSipPrice * (1 + settings.sipStepPct / 100);
+  if (gap < settings.sipGapDays) {
+    const next = new Date(toDate(s.lastSipDate).getTime() + settings.sipGapDays * DAY).toISOString().slice(0, 10);
+    return { ready: false, need, reason: `Next tranche from ${next}` };
+  }
+  if (s.ltp == null || s.ltp < need) return { ready: false, need, reason: `Needs ${need.toFixed(2)}, +${settings.sipStepPct}% over the last SIP buy` };
+  return { ready: true, need };
 }
 
 /** Full exit calculation (used by the Sell dialog and the ledger). */

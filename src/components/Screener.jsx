@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { RefreshCw, Search, Radar, Loader2 } from 'lucide-react';
+import { RefreshCw, Search, Radar, Loader2, ChevronDown } from 'lucide-react';
 import { CarChip, pct, price, rupee, Segmented, Empty } from './ui.jsx';
 import { fetchSeries, analyse } from '../lib/market.js';
 import UniverseUpdater from './UniverseUpdater.jsx';
 
 export default function Screener({ scan, scanning, progress, onScan, openSymbols, slotSize, settings, act, universe, onSettings }) {
-  const [view, setView] = useState('Bull');
+  const [showOthers, setShowOthers] = useState(false);
   const [sort, setSort] = useState('price');
   const [hideHeld, setHideHeld] = useState(true);
   const [q, setQ] = useState('');
@@ -17,7 +17,7 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
   }, [scan]);
 
   const list = useMemo(() => {
-    let r = (scan?.rows || []).filter((x) => x.status === view);
+    let r = (scan?.rows || []).filter((x) => x.status === 'Bull');
     if (hideHeld) r = r.filter((x) => !openSymbols.includes(x.symbol));
     if (q) r = r.filter((x) => x.symbol.includes(q.toUpperCase()));
     const f = {
@@ -26,7 +26,7 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
       far: (a, b) => Math.abs(b.diff200) - Math.abs(a.diff200),
     }[sort];
     return r.sort(f);
-  }, [scan, view, hideHeld, q, sort, openSymbols]);
+  }, [scan, hideHeld, q, sort, openSymbols]);
 
   const age = scan?.at ? Math.round((Date.now() - scan.at) / 60000) : null;
 
@@ -48,13 +48,9 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
         <div className="mt-3"><UniverseUpdater settings={settings} universe={universe} openSymbols={openSymbols} onSave={onSettings} /></div>
         {scanning && <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full bg-tau transition-all" style={{ width: `${(progress.done / (progress.total || 1)) * 100}%` }} /></div>}
         {scan && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-            {[['Bull', 'Bull run', 'text-gain'], ['Unconfirmed', 'Unconfirmed', 'text-zinc-300'], ['Bear', 'Bear run', 'text-loss']].map(([k, l, c]) => (
-              <button key={k} onClick={() => setView(k)} className={`rounded-xl border px-3 py-2 transition ${view === k ? 'border-white/20 bg-white/[0.06]' : 'border-white/[0.06]'}`}>
-                <span className={`display num mr-1.5 font-semibold ${c}`}>{counts[k] || 0}</span><span className="muted">{l}</span>
-              </button>
-            ))}
-            <span className="ml-auto text-xs muted">
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+            <span><span className="display num text-lg font-semibold text-gain">{counts.Bull || 0}</span> <span className="muted">stocks in a bull run</span></span>
+            <span className="text-xs muted sm:ml-auto">
               {age != null && (age < 1 ? 'Updated just now' : age < 60 ? `Updated ${age} min ago` : `Updated ${new Date(scan.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`)}
               {scan.errors && Object.keys(scan.errors).length > 0 && `, ${Object.keys(scan.errors).length} without data`}
             </span>
@@ -86,7 +82,7 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
                 <div key={r.symbol} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 px-5 py-3 md:grid-cols-[1.4fr_1fr_1fr_1.6fr_1fr_auto]">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2"><span className="font-semibold">{r.symbol}</span>{openSymbols.includes(r.symbol) && <span className="chip bg-tau-soft text-tau">held</span>}</div>
-                    <div className="truncate text-xs muted md:hidden">{price(r.ltp)}, {pct(r.diff200, 1)} vs 200 DMA, {qty} shares per slot</div>
+                    <div className="truncate text-xs muted md:hidden">{price(r.ltp)}, {pct(r.diff200, 1)} vs 200 DMA{qty > 0 ? `, ${qty} sh` : ''}</div>
                   </div>
                   <span className="num hidden text-right md:block">{price(r.ltp)}</span>
                   <span className={`num hidden text-right md:block ${r.diff200 > 0 ? 'text-gain' : 'text-loss'}`}>{pct(r.diff200)}</span>
@@ -96,12 +92,50 @@ export default function Screener({ scan, scanning, progress, onScan, openSymbols
                 </div>
               );
             })}
-            {!list.length && <p className="px-5 py-8 text-center text-sm muted">No stocks match.</p>}
+            {!list.length && <p className="px-5 py-8 text-center text-sm muted">{q ? 'No bull-run stocks match that filter.' : hideHeld ? 'No bull-run stocks you don\'t already hold.' : 'No stocks are in a bull run today.'}</p>}
           </div>
         </div>
       )}
 
+      {scan && <OtherStocks rows={scan.rows} open={showOthers} onToggle={() => setShowOthers((v) => !v)} />}
+
       <CarLookup />
+    </div>
+  );
+}
+
+function OtherStocks({ rows, open, onToggle }) {
+  const bear = rows.filter((r) => r.status === 'Bear').sort((a, b) => a.diff200 - b.diff200);
+  const unc = rows.filter((r) => r.status === 'Unconfirmed').sort((a, b) => a.symbol.localeCompare(b.symbol));
+  const Group = ({ title, list, hint }) => (
+    <div className="px-5 py-4">
+      <div className="text-sm font-medium">{title} <span className="num muted">({list.length})</span></div>
+      <p className="mt-0.5 text-xs muted">{hint}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {list.map((r) => (
+          <span key={r.symbol} className="chip bg-white/[0.04] text-zinc-300" title={`${price(r.ltp)}, ${pct(r.diff200, 1)} vs 200 DMA`}>
+            {r.symbol} <span className={`num ${r.diff200 > 0 ? 'text-gain' : 'text-loss'}`}>{pct(r.diff200, 1)}</span>
+          </span>
+        ))}
+        {!list.length && <span className="text-xs muted">None</span>}
+      </div>
+    </div>
+  );
+  return (
+    <div className="card overflow-hidden">
+      <button onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3 px-5 py-4 text-left">
+        <div className="min-w-0 flex-1">
+          <div className="font-medium">Not buyable today</div>
+          <div className="text-sm muted">{bear.length + unc.length} stocks in a bear run or unconfirmed. For reference only.</div>
+        </div>
+        <ChevronDown size={18} className={`shrink-0 text-zinc-500 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="divide-y divide-white/[0.05] border-t border-white/[0.05]">
+          <Group title="Bear run" list={bear} hint="Below its 50, 100 and 200-day averages, and up to 10% under the 200-day." />
+          <Group title="Unconfirmed" list={unc} hint="Mixed signals: neither bull nor bear by the DMA rules." />
+        </div>
+      )}
     </div>
   );
 }

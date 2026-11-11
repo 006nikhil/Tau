@@ -1,4 +1,4 @@
-# Tau: the 6.28% strategy desk
+# Tau
 
 A standalone app for the no-stop-loss strategy: DMADMA screener, CAR-timed SIP averaging,
 15-slot capital, and a dividend / compound / SIP-reserve profit split. It runs on the **same

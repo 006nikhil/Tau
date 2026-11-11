@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MoreHorizontal, Plus, Waves, Briefcase } from 'lucide-react';
 import { CarChip, pct, price, rupee, tone, Empty, Segmented, days } from './ui.jsx';
+import { sipReadiness } from '../lib/strategy.js';
 
 export default function Holdings({ sm, cars, act }) {
   const { rows, S } = sm;
@@ -12,7 +13,7 @@ export default function Holdings({ sm, cars, act }) {
   }[sort];
   const active = rows.filter((r) => r.p.mode !== 'sip').sort(sorter);
   const sip = rows.filter((r) => r.p.mode === 'sip').sort((a, b) => {
-    const ab = cars[a.p.symbol]?.signal === 'BUY' ? 0 : 1, bb = cars[b.p.symbol]?.signal === 'BUY' ? 0 : 1;
+    const ab = sipReadiness(a.s, cars[a.p.symbol], S).ready ? 0 : 1, bb = sipReadiness(b.s, cars[b.p.symbol], S).ready ? 0 : 1;
     return ab - bb || sorter(a, b);
   });
 
@@ -56,7 +57,8 @@ function Section({ title, count, sub, accent = 'text-zinc-100', children }) {
 function HoldingRow({ r, S, car, act }) {
   const { p, s } = r;
   const isSip = p.mode === 'sip';
-  const carBuy = car?.signal === 'BUY';
+  const sr = isSip ? sipReadiness(s, car, S) : null;
+  const carBuy = !!sr?.ready;
   return (
     <div className={`px-5 py-3.5 ${s.ready ? 'bg-tau-soft' : isSip && carBuy ? 'bg-sip-soft' : ''}`}>
       <div className="flex items-start gap-3">
@@ -83,6 +85,7 @@ function HoldingRow({ r, S, car, act }) {
       <div className="mt-2.5 flex flex-wrap gap-2 [&_.btn]:!py-1.5">
         <button className={s.ready ? 'btn-gain' : 'btn-ghost'} onClick={() => act.sell(p)}>Book</button>
         {isSip && <button className={carBuy ? 'btn-sip' : 'btn-ghost'} onClick={() => act.sip(p)}><Waves size={15} />SIP {rupee(s.sipAmount)}</button>}
+        {isSip && !carBuy && sr?.reason && <span className="self-center text-xs muted">{sr.reason}</span>}
         {!isSip && s.sipEligible && <button className="btn-ghost text-sip" onClick={() => act.moveSip(p)}>Move to SIP</button>}
         <button className="btn-ghost ml-auto !px-2.5" aria-label="Details" onClick={() => act.detail(p)}><MoreHorizontal size={16} /></button>
       </div>

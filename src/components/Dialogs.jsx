@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Modal, Field, NumberInput, Row, rupee, price, pct, tone, fmtDate, CarChip, days } from './ui.jsx';
-import { buyCharges, exitCalc, positionStats, splitProfit, todayISO, uid } from '../lib/strategy.js';
+import { buyCharges, exitCalc, positionStats, splitProfit, todayISO, uid, sipReadiness } from '../lib/strategy.js';
 
 // ── Buy (new slot) ───────────────────────────────────────────────────────────
 export function BuyDialog({ open, onClose, prefill, ctx, onSave }) {
@@ -105,6 +105,10 @@ export function SellDialog({ open, onClose, position, ctx, onSave }) {
                   <SplitBox label="Compounding" value={sp.compound} cls="text-gain" />
                   <SplitBox label="SIP reserve" value={sp.reserve} cls="text-sip" />
                 </div>
+                <div className="mt-2 rounded-xl bg-white/[0.03] px-3 py-1">
+                  <Row k="Back to free cash" v={rupee(x.buyValue + sp.compound)} />
+                  <Row k="Slot size for next buys" v={`${rupee(ledger.slotSize)} → ${rupee((ledger.capitalBase + sp.compound) / settings.slots)}`} />
+                </div>
                 {settings.split.reserve > 0 && settings.split.reserveCapPct > 0 && sp.reserve < (x.net * settings.split.reserve) / 100 - 0.5 && (
                   <p className="mt-2 text-xs muted">Reserve is at its {settings.split.reserveCapPct}% cap, so the extra goes to compounding.</p>
                 )}
@@ -152,7 +156,12 @@ export function SipDialog({ open, onClose, position, ctx, onSave }) {
         <div className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3 py-2.5 text-sm">
           <span className="muted">CAR signal today</span><CarChip car={c} />
         </div>
-        {c?.signal !== 'BUY' && <div className="flex gap-2 rounded-xl bg-sip-soft p-3 text-sm text-sip"><AlertTriangle size={16} className="mt-0.5 shrink-0" />CAR hasn't confirmed the reversal yet. The method says wait for "buy".</div>}
+        {(() => {
+          const sr = sipReadiness({ ...s, ltp: px > 0 ? Number(px) : s.ltp }, c, settings, date);
+          if (sr.ready) return null;
+          const msg = c?.signal !== 'BUY' ? 'CAR hasn\'t confirmed the reversal yet. The method says wait for "buy".' : `${sr.reason}. The method says wait.`;
+          return <div className="flex gap-2 rounded-xl bg-sip-soft p-3 text-sm text-sip"><AlertTriangle size={16} className="mt-0.5 shrink-0" />{msg}</div>;
+        })()}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Price"><NumberInput value={px} onChange={setPx} /></Field>
           <Field label="Quantity" hint={touched ? 'Edited by you' : `Auto: ${rupee(s.sipAmount)}`}><NumberInput step="1" value={qty} onChange={(v) => { setQty(v); setTouched(true); }} /></Field>
@@ -160,6 +169,7 @@ export function SipDialog({ open, onClose, position, ctx, onSave }) {
         <Field label="Date"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <div className="rounded-xl bg-white/[0.03] px-3 py-1">
           <Row k="Amount" v={rupee(value)} strong />
+          {s.sipCount > 0 && <Row k="Last SIP buy" v={`${price(s.lastSipPrice)} on ${fmtDate(s.lastSipDate)}`} />}
           <Row k="New average" v={`${price(s.avgPrice)} → ${price(newAvg)}`} />
           <Row k="New target" v={price(newAvg * (1 + settings.targetPct / 100))} />
           <Row k="Paid from SIP reserve" v={rupee(Math.min(ledger.reserveCash, value + ch.total))} />

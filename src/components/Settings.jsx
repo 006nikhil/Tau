@@ -62,6 +62,8 @@ export default function Settings({ state, setState, sm, mode, user, onSignOut, o
           <Field label="Profit target %"><NumberInput value={S.targetPct} onChange={(v) => set({ targetPct: +v || 6.28 })} /></Field>
           <Field label="SIP soft cap, loss %" hint="At this loss, Tau suggests moving to SIP"><NumberInput value={S.sipTriggerPct} onChange={(v) => set({ sipTriggerPct: +v || 20 })} /></Field>
           <Field label="SIP tranche, fraction of slot" hint="0.1 = one tenth"><NumberInput value={S.sipFraction} onChange={(v) => set({ sipFraction: +v || 0.1 })} /></Field>
+          <Field label="Days between SIP tranches" hint="After the first, while CAR stays buy"><NumberInput step="1" value={S.sipGapDays} onChange={(v) => set({ sipGapDays: Math.max(1, +v || 7) })} /></Field>
+          <Field label="Each SIP above the last by %" hint="Price must be this much over the previous SIP buy"><NumberInput value={S.sipStepPct} onChange={(v) => set({ sipStepPct: +v || 0 })} /></Field>
           <Field label="Bull run band, min % over 200 DMA"><NumberInput value={S.bull.minPct} onChange={(v) => setNested('bull', { minPct: +v })} /></Field>
           <Field label="Bull run band, max %"><NumberInput value={S.bull.maxPct} onChange={(v) => setNested('bull', { maxPct: +v })} /></Field>
         </div>
