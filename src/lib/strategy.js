@@ -395,8 +395,22 @@ export function summarize(state, quotes = {}) {
 }
 
 /** The compact summary Lodha Finance reads (tau_summary table). */
-export function lodhaSummary(sm) {
+export function lodhaSummary(sm, cars = {}) {
+  const holdings = sm.rows.map(({ p, s }) => ({
+    symbol: p.symbol, mode: p.mode === 'sip' ? 'sip' : 'active',
+    qty: s.qty, avgPrice: round2(s.avgPrice), invested: round2(s.buyValue),
+    ltp: s.ltp ?? null, marketValue: s.mv != null ? round2(s.mv) : null,
+    pl: s.pl != null ? round2(s.pl) : null, plPct: s.plPct != null ? round2(s.plPct) : null,
+    target: round2(s.target), toTargetPct: s.toTarget != null ? round2(s.toTarget) : null, ready: s.ready,
+    firstBuy: s.firstBuy, days: s.days, sipCount: s.sipCount, sipStart: s.sipStart,
+    car: cars[p.symbol]?.signal || null, carStreak: cars[p.symbol]?.streak ?? null,
+  })).sort((a, b) => (a.toTargetPct ?? 99) - (b.toTargetPct ?? 99));
   return {
+    holdings,
+    slots: sm.S.slots, slotSize: round2(sm.L.slotSize),
+    avgNetPct: sm.avgNetPct, avgSipRecoveryDays: sm.avgSipRecovery, sipRecoveries: sm.sipRecoveries,
+    chargesPaid: round2(sm.chargesPaid), deposits: round2(sm.deposits), withdrawals: round2(sm.withdrawals), firstDate: sm.firstDate,
+    byMonth: sm.byMonth,
     updatedAt: new Date().toISOString(),
     capital: round2(sm.L.capitalBase),
     equity: round2(sm.equityMTM),

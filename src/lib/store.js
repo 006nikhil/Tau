@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { lodhaSummary, summarize } from './strategy.js';
+import { marketCache } from './market.js';
 
 const URL = import.meta.env.VITE_SUPABASE_URL;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -21,6 +22,15 @@ const readLocal = () => {
   try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || null; } catch { return null; }
 };
 const writeLocal = (s) => { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(s)); } catch { /* ignore */ } };
+
+/** Publish the summary Lodha Finance reads. Called after saves and after price refreshes. */
+export async function pushSummary(state) {
+  if (!supabase) return;
+  try {
+    const sm = summarize(state, marketCache.quotes);
+    await supabase.from('tau_summary').upsert({ id: ROW_ID, summary: lodhaSummary(sm, marketCache.car), updated_at: new Date().toISOString() });
+  } catch { /* best-effort */ }
+}
 
 export function useTauStore() {
   const [user, setUser] = useState(null);
@@ -106,9 +116,7 @@ export function useTauStore() {
     }
     rev.current = newRev;
     setStatus('synced');
-    try {
-      await supabase.from('tau_summary').upsert({ id: ROW_ID, summary: lodhaSummary(summarize(next)), updated_at: new Date().toISOString() });
-    } catch { /* summary is best-effort */ }
+    pushSummary(next);
   }, [load]);
 
   const setState = useCallback((updater) => {

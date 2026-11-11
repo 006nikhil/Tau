@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutDashboard, Briefcase, Radar, BookOpen, Settings as Cog, RefreshCw, Loader2, Undo2, Cloud, CloudOff, HardDrive, Plus, Sun, Moon } from 'lucide-react';
-import { useTauStore, MODE } from './lib/store.js';
+import { useTauStore, MODE, pushSummary } from './lib/store.js';
 import { summarize, todayISO } from './lib/strategy.js';
 import { marketCache, refreshHoldings, runScan, isMarketHours } from './lib/market.js';
 import { DEFAULT_UNIVERSE } from './lib/universe.js';
@@ -36,6 +36,7 @@ export default function App() {
 
   const [theme, setTheme] = useState(() => { try { return localStorage.getItem('tau.theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); } catch { return 'dark'; } });
   const toggleTheme = () => setTheme((t) => { const n = t === 'light' ? 'dark' : 'light'; try { localStorage.setItem('tau.theme', n); } catch { /* ignore */ } return n; });
+  const stateRef = React.useRef(state); stateRef.current = state;
   const smRaw = useMemo(() => summarize(state, quotes), [state, quotes]);
   const sm = useMemo(() => ({ ...smRaw, S: { ...smRaw.S, theme } }), [smRaw, theme]);
   const S = sm.S;
@@ -57,6 +58,7 @@ export default function App() {
     try {
       const r = await refreshHoldings(symKey.split(','));
       setQuotes((q) => ({ ...q, ...r.quotes })); setCars((c) => ({ ...c, ...r.cars }));
+      if (MODE === 'cloud' && Object.keys(r.quotes).length) pushSummary(stateRef.current);
       const missing = Object.keys(r.errors || {});
       if (missing.length && !Object.keys(r.quotes).length) setNotice('Price service unreachable. Prices refresh once the app is deployed or back online.');
       else if (missing.length) setNotice(`No price for ${missing.join(', ')}. Check the NSE code.`);
